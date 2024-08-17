@@ -9,7 +9,8 @@ object Dependencies {
     val http4s     = "0.22.15"
     val circe      = "0.14.2"
     val pureConfig = "0.17.4"
-
+    val sttp = "3.9.8"
+    val enumeratum = "1.7.0"
     val kindProjector  = "0.13.2"
     val logback        = "1.2.3"
     val scalaCheck     = "1.15.3"
@@ -32,6 +33,10 @@ object Dependencies {
     lazy val circeGeneric    = circe("circe-generic")
     lazy val circeGenericExt = circe("circe-generic-extras")
     lazy val circeParser     = circe("circe-parser")
+    lazy val sttp = "com.softwaremill.sttp.client3" %% "core" % Versions.sttp
+    lazy val sttpCirce = "com.softwaremill.sttp.client3" %% "circe" % Versions.sttp
+    lazy val enumeratum = "com.beachape" %% "enumeratum" % Versions.enumeratum
+    lazy val enumeratumCirce = "com.beachape" %% "enumeratum-circe" % Versions.enumeratum
     lazy val pureConfig      = "com.github.pureconfig" %% "pureconfig" % Versions.pureConfig
 
     // Compiler plugins

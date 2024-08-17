@@ -10,6 +10,8 @@ object Converters {
       GetApiResponse(
         from = rate.pair.from,
         to = rate.pair.to,
+        bid = rate.bid,
+        ask = rate.ask,
         price = rate.price,
         timestamp = rate.timestamp
       )

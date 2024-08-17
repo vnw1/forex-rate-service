@@ -21,6 +21,8 @@ object Protocol {
       from: Currency,
       to: Currency,
       price: Price,
+      bid: Price,
+      ask: Price,
       timestamp: Timestamp
   )
 
