@@ -1,28 +1,31 @@
 package forex
 
-import scala.concurrent.ExecutionContext
 import cats.effect._
-import forex.config._
 import fs2.Stream
 import org.http4s.blaze.server.BlazeServerBuilder
+import forex.config.{Config}
+
+import scala.concurrent.duration._
 
 object Main extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] =
-    new Application[IO].stream(executionContext).compile.drain.as(ExitCode.Success)
+    stream.compile.drain.as(ExitCode.Success)
 
-}
-
-class Application[F[_]: ConcurrentEffect: Timer] {
-
-  def stream(ec: ExecutionContext): Stream[F, Unit] =
+  private def stream: Stream[IO, Unit] = {
     for {
-      config <- Config.stream("app")
-      module = new Module[F](config)
-      _ <- BlazeServerBuilder[F](ec)
-            .bindHttp(config.http.port, config.http.host)
-            .withHttpApp(module.httpApp)
-            .serve
+      config <- Config.stream[IO]("app")
+      module = new Module[IO](config)
+      _ <- Stream.eval(module.refreshRatesCache)
+      server = BlazeServerBuilder[IO](executionContext)
+                 .bindHttp(config.http.port, config.http.host)
+                 .withHttpApp(module.httpApp)
+                 .serve
+      refresh = periodicRefresh(module)
+      _ <- server.concurrently(refresh)
     } yield ()
+  }
 
+  private def periodicRefresh(module: Module[IO]): Stream[IO, Unit] =
+    Stream.awakeEvery[IO](2.minutes).evalMap(_ => module.refreshRatesCache)
 }
