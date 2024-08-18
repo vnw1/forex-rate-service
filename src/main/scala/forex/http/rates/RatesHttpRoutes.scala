@@ -21,15 +21,17 @@ class RatesHttpRoutes[F[_]: Sync](rates: RatesProgram[F]) extends Http4sDsl[F] {
   case GET -> Root :? FromQueryParam(fromResult) +& ToQueryParam(toResult) =>
     (fromResult, toResult) match {
       case (Right(from), Right(to)) =>
-        println(s"RatesHttpRoutes: Received request for $from to $to")  // Debug log
+        println(s"RatesHttpRoutes: Received request for $from to $to")
         rates.get(RatesProgramProtocol.GetRatesRequest(from, to)).flatMap {
           case Right(rate) => Ok(rate.asGetApiResponse)
           case Left(error) => handleError(error)
         }
       case (Left(fromError), _) =>
-        BadRequest(s"Invalid 'from' currency: ${fromError.sanitized}")
+        println(s"Invalid 'from' currency: ${fromError.sanitized}")
+        BadRequest(s"Invalid 'from' currency: ${fromError.details}")
       case (_, Left(toError)) =>
-        BadRequest(s"Invalid 'to' currency: ${toError.sanitized}")
+        println(s"Invalid 'from' currency: ${toError.sanitized}")
+        BadRequest(s"Invalid 'to' currency: ${toError.details}")
     }
 }
 

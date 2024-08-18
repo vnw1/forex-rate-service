@@ -36,7 +36,7 @@ class OneFrameLive[F[_]: Concurrent](config: OneFrameConfig)
 
   private def fetchRatesFromApi(pairs: List[Rate.Pair]): F[Either[Error, List[Rate]]] = {
     val pairParams = pairs.map(p => s"pair=${p.from}${p.to}").mkString("&")
-    val url = s"${config.baseurl}/rates?$pairParams"
+    val url = s"${config.baseUrl}/rates?$pairParams"
     println(s"Fetching rates from: $url")
     val request = baseRequest.get(uri"$url")
     Concurrent[F].delay(request.send(backend)).attempt.flatMap {
