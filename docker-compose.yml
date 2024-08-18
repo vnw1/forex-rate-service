@@ -1,0 +1,24 @@
+services:
+  forex-app:
+    build: .
+    ports:
+      - "8090:8090"
+    depends_on:
+      - one-frame
+    environment:
+      - FOREX_SERVICE_MODE=live
+      - ONE_FRAME_TOKEN=10dc303535874aeccc86a8251e6992f5
+      - ONE_FRAME_HOST_PORT=http://one-frame:8080
+    networks:
+      - forex-network
+
+  one-frame:
+    image: paidyinc/one-frame
+    ports:
+      - "8080:8080"
+    networks:
+      - forex-network
+
+networks:
+  forex-network:
+    driver: bridge
