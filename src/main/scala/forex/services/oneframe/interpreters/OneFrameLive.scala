@@ -25,66 +25,67 @@ class OneFrameLive[F[_]: Concurrent](config: OneFrameConfig)
       price: BigDecimal,
       time_stamp: String
   )
+  private case class OneFrameErrorResponse(error: String)
 
   override def get(pair: Rate.Pair): F[Error Either Rate] =
     cache.get(pair) match {
       case Some(rate) => Concurrent[F].pure(Right(rate))
       case None =>
-        Concurrent[F].pure(Left(Error.OneFrameLookupFailed("Invalid pair")))
+        Concurrent[F].pure(Left(Error.CacheLookupFailed("No data of this pair")))
     }
 
-  private def fetchRatesFromApi(pairs: List[Rate.Pair]): F[List[Rate]] = {
-    val pairParams = pairs.map(p => s"pair=${(p.from)}${(p.to)}").mkString("&")
-    val url = s"${config.baseurl}/rates?$pairParams"
-    print(url)
+  private def fetchRatesFromApi(pairs: List[Rate.Pair]): F[Either[Error, List[Rate]]] = {
+    val pairParams = pairs.map(p => s"pair=${p.from}${p.to}").mkString("&")
+    val url = s"${config.baseUrl}/rates?$pairParams"
+    println(s"Fetching rates from: $url")
     val request = baseRequest.get(uri"$url")
-
-    Concurrent[F].delay(request.send(backend)).flatMap { response =>
-      handleResponse(response)
+    Concurrent[F].delay(request.send(backend)).attempt.flatMap {
+      case Right(response) => handleResponse(response)
+      case Left(throwable) => Concurrent[F].pure(Left(Error.OneFrameLookupFailed(s"Request to One-Frame API failed: ${throwable.getMessage}")))
     }
   }
 
-  private def handleResponse(
-      response: Response[Either[String, String]]
-  ): F[List[Rate]] =
-    Concurrent[F].delay {
-      response.body match {
-        case Right(jsonBody) => parseJsonResponse(jsonBody)
-        case Left(error) =>
-          throw new RuntimeException(s"Request to One-Frame API failed: $error")
-      }
-    }
-
-  private def parseJsonResponse(jsonBody: String): List[Rate] = {
-    decode[List[OneFrameRate]](jsonBody) match {
-      case Right(rates) =>
-        rates.map { rate =>
-          val pair = Rate.Pair(rate.from, rate.to)
-          val timestamp = Timestamp(OffsetDateTime.parse(rate.time_stamp))
-          val rateInstance = Rate(
-            pair,
-            Price(rate.price),
-            Price(rate.bid),
-            Price(rate.ask),
-            timestamp
-          )
-          cache.put(pair, rateInstance)
-          rateInstance
-        }
-      case Left(error) =>
-        println(s"Failed to parse JSON: $jsonBody")
-        throw new RuntimeException(
-          s"Failed to parse API response: ${error.getMessage}"
-        )
+  private def handleResponse(response: Response[Either[String, String]]): F[Either[Error, List[Rate]]] = 
+  Concurrent[F].delay {
+    response.body match {
+      case Right(jsonBody) =>
+        decode[List[OneFrameRate]](jsonBody) match {
+          case Right(rates) => 
+            Right(rates.map { rate =>
+              val pair = Rate.Pair(rate.from, rate.to)
+              val timestamp = Timestamp(OffsetDateTime.parse(rate.time_stamp))
+              val rateInstance = Rate(
+                pair,
+                Price(rate.price),
+                Price(rate.bid),
+                Price(rate.ask),
+                timestamp
+              )
+              cache.put(pair, rateInstance)
+              rateInstance
+            })
+          case Left(_) => 
+            decode[OneFrameErrorResponse](jsonBody) match {
+              case Right(errorResponse) => Left(Error.OneFrameLookupFailed(errorResponse.error))
+              case Left(error) => Left(Error.JsonParsingFailed(s"Failed to parse API response: ${error.getMessage}"))
+            }
+          }
+      case Left(error) => Left(Error.OneFrameLookupFailed(s"Unexpected response body: $error"))
     }
   }
 
-  def refreshCache: F[Unit] =
-    fetchAllRates.void
+  override def refreshCache: F[Either[Error, Unit]] = 
+    fetchAllRates.flatMap {
+      case Right(_) => Concurrent[F].pure(Right(()))
+      case Left(error) => Concurrent[F].pure(Left(error))
+    }
 
-  private def fetchAllRates: F[List[Rate]] = {
+  private def fetchAllRates: F[Either[Error, List[Rate]]] = {
     val pairs = generateAllPairs
-    fetchRatesFromApi(pairs)
+    fetchRatesFromApi(pairs).map {
+      case Right(rates) => Right(rates)
+      case Left(error) => Left(error)
+    }
   }
 
   private def generateAllPairs: List[Rate.Pair] = {

@@ -14,6 +14,8 @@ case class HttpConfig(
 )
 
 case class OneFrameConfig(
-    baseurl: String,
-    token: String
+    baseUrl: String,
+    token: String,
+    serviceMode: String,
+    refreshInterval: FiniteDuration
 )

@@ -1,7 +1,7 @@
 package forex.services.rates
 
 import cats.Applicative
-import cats.effect.{Concurrent}
+import cats.effect.Concurrent
 import interpreters._
 import forex.config.OneFrameConfig
 import forex.services.oneframe.interpreters.OneFrameLive

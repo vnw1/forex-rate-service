@@ -5,5 +5,5 @@ import errors._
 
 trait Algebra[F[_]] {
   def get(pair: Rate.Pair): F[Error Either Rate]
-  def refreshCache: F[Unit]
+  def refreshCache: F[Either[Error, Unit]]
 }
