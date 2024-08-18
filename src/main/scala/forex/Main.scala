@@ -4,11 +4,9 @@ import cats.effect._
 import fs2.Stream
 import org.http4s.blaze.server.BlazeServerBuilder
 import forex.config.{Config}
-
 import scala.concurrent.duration._
 
 object Main extends IOApp {
-
   override def run(args: List[String]): IO[ExitCode] =
     stream.compile.drain.as(ExitCode.Success)
 
@@ -18,14 +16,15 @@ object Main extends IOApp {
       module = new Module[IO](config)
       _ <- Stream.eval(module.refreshRatesCache)
       server = BlazeServerBuilder[IO](executionContext)
-                 .bindHttp(config.http.port, config.http.host)
-                 .withHttpApp(module.httpApp)
-                 .serve
+        .bindHttp(config.http.port, config.http.host)
+        .withHttpApp(module.httpApp)
+        .serve
       refresh = periodicRefresh(module)
       _ <- server.concurrently(refresh)
     } yield ()
   }
 
-  private def periodicRefresh(module: Module[IO]): Stream[IO, Unit] =
-    Stream.awakeEvery[IO](2.minutes).evalMap(_ => module.refreshRatesCache)
+  private def periodicRefresh(module: Module[IO]): Stream[IO, Unit] = Stream
+  .awakeEvery[IO](2.minutes)
+  .evalMap(_ => module.refreshRatesCache)
 }

@@ -1,6 +1,7 @@
 package forex
 
 import cats.effect.{ Concurrent, Timer }
+import cats.syntax.flatMap._
 import forex.config.ApplicationConfig
 import forex.http.rates.RatesHttpRoutes
 import forex.services._
@@ -34,5 +35,8 @@ class Module[F[_]: Concurrent: Timer](config: ApplicationConfig) {
 
   val httpApp: HttpApp[F] = appMiddleware(routesMiddleware(http).orNotFound)
 
-  def refreshRatesCache: F[Unit] = ratesService.refreshCache
+  def refreshRatesCache: F[Unit] = ratesService.refreshCache.flatMap {
+    case Right(_) => Concurrent[F].delay(println("Rates cache refreshed successfully"))
+    case Left(error) => Concurrent[F].delay(println(s"Failed to refresh rates: ${error.message}"))
+  }
 }
